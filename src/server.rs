@@ -30,11 +30,18 @@ pub struct Server {
 
     /// IP address where tunnels will listen on.
     bind_tunnels: IpAddr,
+
+    /// Control port to listen on.
+    control_port: u16,
 }
 
 impl Server {
     /// Create a new server with a specified minimum port number.
-    pub fn new(port_range: RangeInclusive<u16>, secret: Option<&str>) -> Self {
+    pub fn new(
+        port_range: RangeInclusive<u16>,
+        secret: Option<&str>,
+        control_port: Option<u16>,
+    ) -> Self {
         assert!(!port_range.is_empty(), "must provide at least one port");
         Server {
             port_range,
@@ -42,6 +49,7 @@ impl Server {
             auth: secret.map(Authenticator::new),
             bind_addr: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             bind_tunnels: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+            control_port: control_port.unwrap_or(CONTROL_PORT),
         }
     }
 
@@ -58,7 +66,7 @@ impl Server {
     /// Start the server, listening for new connections.
     pub async fn listen(self) -> Result<()> {
         let this = Arc::new(self);
-        let listener = TcpListener::bind((this.bind_addr, CONTROL_PORT)).await?;
+        let listener = TcpListener::bind((this.bind_addr, this.control_port)).await?;
         info!(addr = ?this.bind_addr, "server listening");
 
         loop {

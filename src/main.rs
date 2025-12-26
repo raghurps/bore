@@ -27,6 +27,10 @@ enum Command {
         #[clap(short, long, env = "BORE_SERVER")]
         to: String,
 
+        /// Optional port of the remote server initiate tunnel request
+        #[clap(long, env = "BORE_SERVER_PORT")]
+        to_port: Option<u16>,
+
         /// Optional port on the remote server to select.
         #[clap(short, long, default_value_t = 0)]
         port: u16,
@@ -50,6 +54,10 @@ enum Command {
         #[clap(short, long, env = "BORE_SECRET", hide_env_values = true)]
         secret: Option<String>,
 
+        /// Optional port to listen on for connection requests
+        #[clap(short, long, env = "BORE_SERVER_PORT")]
+        control_port: Option<u16>,
+
         /// IP address to bind to, clients must reach this.
         #[clap(long, default_value = "0.0.0.0")]
         bind_addr: IpAddr,
@@ -68,15 +76,17 @@ async fn run(command: Command) -> Result<()> {
             local_port,
             to,
             port,
+            to_port,
             secret,
         } => {
-            let client = Client::new(&local_host, local_port, &to, port, secret.as_deref()).await?;
+            let client = Client::new(&local_host, local_port, &to, to_port, port, secret.as_deref()).await?;
             client.listen().await?;
         }
         Command::Server {
             min_port,
             max_port,
             secret,
+            control_port,
             bind_addr,
             bind_tunnels,
         } => {
@@ -86,7 +96,7 @@ async fn run(command: Command) -> Result<()> {
                     .error(ErrorKind::InvalidValue, "port range is empty")
                     .exit();
             }
-            let mut server = Server::new(port_range, secret.as_deref());
+            let mut server = Server::new(port_range, secret.as_deref(), control_port);
             server.set_bind_addr(bind_addr);
             server.set_bind_tunnels(bind_tunnels.unwrap_or(bind_addr));
             server.listen().await?;
